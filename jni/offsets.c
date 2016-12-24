@@ -227,6 +227,11 @@ struct offsets offsets[] = {
 	  (void*)0xffffffc001887748, (void*)0xffffffc00164ad48, (void*)0xffffffc00188429c },
 };
 
+struct offsets2 offsets2[] = {
+		{"OPPO A33m", "Linux version 3.10.49-perf-g70c6551-00009-gc898264 (root@ubuntu-121-102) (gcc version 4.9.x-google 20140827 (prerelease) (GCC) ) #1 SMP PREEMPT Fri Jul 1 02:48:44 CST 2016",
+		(void*)CHECK_FLAGS_OFFSET(0xffffffc00125a0b0), (void*)0xffffffc0008a53a4, 0x28, 0x68, (void*)0xFFFFFFC0008A541C }
+};
+
 #else
 
 struct offsets offsets[] = {
@@ -329,6 +334,36 @@ struct offsets* get_offsets()
 		if(strcmp(kernelver, offsets[i].kernelver))
 			continue;
 		o = &offsets[i];
+		break;
+	}
+
+end:
+	if(o == NULL)
+		printf("Error: Device not supported\n");
+	free(devname);
+	free(kernelver);
+	return o;
+}
+
+struct offsets2* get_offsets2()
+{
+	char* devname = calloc(1, DEVNAME_LEN);
+	char* kernelver = calloc(1, KERNELVER_LEN);
+	unsigned int i;
+	struct offsets2* o = NULL;
+
+	if(!get_devname(devname))
+		goto end;
+	if(!get_kernelver(kernelver))
+		goto end;
+
+	for(i = 0; i < ARRAYELEMS(offsets); i++)
+	{
+		if(strcmp(devname, offsets2[i].devname))
+			continue;
+		if(strcmp(kernelver, offsets2[i].kernelver))
+			continue;
+		o = &offsets2[i];
 		break;
 	}
 

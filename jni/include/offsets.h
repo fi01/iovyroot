@@ -25,4 +25,17 @@ struct offsets {
 struct offsets* get_offsets();
 extern struct offsets offsets[];
 
+struct offsets2 {
+	char * devname;
+	char * kernelver;
+	void * check_flags;
+	void * joploc;
+	int    sock_ops_offset;
+	int    ops_setsockopt_offset;
+	void * jopret;
+};
+
+struct offsets2 *get_offsets2();
+extern struct offsets2 offsets2[];
+
 #endif /* OFFSETS_H */
