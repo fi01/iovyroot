@@ -14,6 +14,7 @@
 #include "sidtab.h"
 #include "policydb.h"
 #include "offsets.h"
+#include "selinux.h"
 
 #define UDP_SERVER_PORT (5105)
 #define MEMMAGIC (0xDEADBEEF)
@@ -454,6 +455,12 @@ int main(int argc, char* argv[])
 	if(getuid() == 0)
 	{
 		printf("got root lmao\n");
+		ret = setprocattrcon("u:r:init:s0", 0, "current");
+		if(ret != 0) {
+			printf("set scontext to u:r:init:s0 error!\n");
+			return -1;
+		}
+
 		if(argc <= 1)
 			system("USER=root /system/bin/sh");
 		else
