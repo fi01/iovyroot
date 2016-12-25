@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <string.h>
+#include <stdio.h>
 
 int setprocattrcon(const char * context,
 			  pid_t pid, const char *attr)
