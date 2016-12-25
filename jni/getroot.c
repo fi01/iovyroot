@@ -5,7 +5,7 @@
 
 #include "offsets.h"
 #include "threadinfo.h"
-#include "sid.h"
+
 
 #define __user
 #define __kernel
