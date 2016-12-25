@@ -229,7 +229,8 @@ struct offsets offsets[] = {
 
 struct offsets2 offsets2[] = {
 		{"OPPO A33m", "Linux version 3.10.49-perf-g70c6551-00009-gc898264 (root@ubuntu-121-102) (gcc version 4.9.x-google 20140827 (prerelease) (GCC) ) #1 SMP PREEMPT Fri Jul 1 02:48:44 CST 2016",
-		(void*)CHECK_FLAGS_OFFSET(0xffffffc00125a0b0), (void*)0xffffffc0008a53a4, 0x28, 0x68, (void*)0xFFFFFFC0008A541C }
+		(void*)CHECK_FLAGS_OFFSET(0xffffffc00125a0b0), (void*)0xffffffc0008a53a4, 0x28, 0x68, (void*)0xFFFFFFC0008A541C,
+		(void*)0xFFFFFFC000674000, 0x150, (void*)0xFFFFFFC000192540}
 };
 
 #else

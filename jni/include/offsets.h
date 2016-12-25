@@ -29,10 +29,13 @@ struct offsets2 {
 	char * devname;
 	char * kernelver;
 	void * check_flags;
-	void * joploc;
+	void * patch_addr_limit_joploc;
 	int    sock_ops_offset;
 	int    ops_setsockopt_offset;
-	void * jopret;
+	void * patch_addr_limit_jopret;
+	void * get_threadinfo_joploc;
+	int    get_threadinfo_jopret_offset;
+	void * get_threadinfo_jopret;
 };
 
 struct offsets2 *get_offsets2();

