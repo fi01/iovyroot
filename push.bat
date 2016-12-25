@@ -1,3 +1,4 @@
+cmd /c ndk-build
 
 adb push "%cd%\libs\arm64-v8a\iovyroot" /data/local/tmp/iovyroot
 adb shell chmod 755 /data/local/tmp/iovyroot
