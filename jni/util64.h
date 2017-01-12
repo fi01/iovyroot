@@ -10,6 +10,6 @@
 
 int init_utils64();
 int new_search_task64();
-void *get_task_struct64();
+unsigned long get_task_struct64();
 
 #endif /* UTIL_H_ */
