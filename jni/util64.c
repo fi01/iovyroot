@@ -84,13 +84,14 @@ static int read_iomem() {
 			if(sysram == 0) {
 				if(strcasecmp(desc0, "System") == 0
 					&& strcasecmp(desc1, "RAM") == 0) {
-					sysram = iomem_end;
+					sysram = iomem_start;
+					printf("System RAM start at 0x%08lX\n", sysram);
 				}
 			}
 
 			if(strcasecmp(desc0, "Kernel") == 0 &&
 				(strcasecmp(desc1, "text") == 0 || strcasecmp(desc1, "code") == 0)) {
-				kernel_search_start = ((iomem_end+0x4000)&(~(0x4000UL-1))) - 0x80000000;
+				kernel_search_start = ((iomem_end+0x4000)&(~(0x4000UL-1))) - sysram;
 				kernel_search_start += 0xFFFFFFC000000000;
 				printf("task search start address is 0x%016lX\n", (uint64_t)kernel_search_start);
 				fclose(iomem_file);
