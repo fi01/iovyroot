@@ -13,7 +13,7 @@
 
 #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
 
-static unsigned long const kernel_start = 0xFFFFFFC000080000;
+static unsigned long const kernel_start = 0xFFFFFFC00080000;
 static unsigned long kernel_search_start = 0;
 static int task_struct_comm_offset = 0;
 static int task_struct_tasks_offset = 0; // default is 0x1D0 for SM-G9008V
@@ -105,8 +105,8 @@ static int read_iomem() {
 }
 
 int init_utils64() {
+	prctl(PR_SET_NAME, new_comm);
 	if(read_iomem() == 0) {
-		prctl(PR_SET_NAME, new_comm);
 		return 0;
 	}
 	return 1;
