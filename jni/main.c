@@ -426,10 +426,6 @@ int main(int argc, char* argv[])
 	
 	if(getuid() == 0)
 	{
-		ret = setprocattrcon("u:r:init:s0", 0, "current");
-		if(ret != 0) {
-			printf("change selinux context from u:r:kernel:s0 to u:r:init:s0 error!\n");
-		}
 		printf("got root lmao\n");
 		ret = setprocattrcon("u:r:init:s0", 0, "current");
 		if(ret != 0) {
