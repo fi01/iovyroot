@@ -1,0 +1,6 @@
+[ro.product.model]: [OPPO A33m]
+
+[ro.build.fingerprint]: [OPPO/A33m/A33:5.1.1/LMY47V/1390465867:user/release-keys]
+
+[ro.build.display.full_id]: [A33m_11_A.14_160701]
+[ro.build.display.id]: [A33m_11_A.14_160701]

