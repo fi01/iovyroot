@@ -55,7 +55,7 @@ end:
 	return ret;
 }
 
-inline int writel_at_address_pipe(void* address, unsigned long val)
+int writel_at_address_pipe(void* address, unsigned long val)
 {
 	return write_at_address_pipe(address, &val, sizeof(val));
 }

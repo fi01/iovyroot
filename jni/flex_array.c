@@ -62,7 +62,7 @@ void *flex_array_get_base(struct flex_array *fa, unsigned int element_nr)
 	return &part->elements[index_inside_part(fa, element_nr, part_nr)];
 }
 
-inline unsigned int flex_array_has_element(struct flex_array* fa, unsigned int element_nr)
+unsigned int flex_array_has_element(struct flex_array* fa, unsigned int element_nr)
 {
 	if (!fa->element_size)
 		return 0;

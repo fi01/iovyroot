@@ -8,7 +8,7 @@
 #define __user
 #define __kernel
 
-static inline struct flex_array* __kernel get_types_fa()
+static struct flex_array* __kernel get_types_fa()
 {
 	struct flex_array* __kernel fa = NULL;
 	struct policydb* pdb = malloc(sizeof(*pdb));
